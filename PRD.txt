@@ -1,0 +1,1799 @@
+# Product Requirements Document
+
+## Product Name
+
+**AI Doc Lens**
+
+## Document Version
+
+Version 1.0
+
+## Product Type
+
+Open-source Python document intelligence and compliance validation engine.
+
+## Status
+
+Planned MVP
+
+---
+
+# 1. Product Overview
+
+AI Doc Lens is an open-source tool that extracts structured information from business documents using an LLM and validates the extracted information against deterministic compliance rules.
+
+The first version will support salary slips in text-based PDF format.
+
+The system will:
+
+1. Accept a document.
+2. Extract readable text from the document.
+3. Extract predefined fields using an LLM.
+4. Validate the extracted response using Pydantic.
+5. Run deterministic Python compliance rules.
+6. Return a structured compliance result.
+
+The LLM will only extract information.
+
+The final compliance decision will be made by Python rules.
+
+```text
+AI extracts facts.
+Python rules evaluate compliance.
+Humans review uncertainty.
+```
+
+---
+
+# 2. Problem Statement
+
+Businesses regularly receive documents such as:
+
+* Salary slips
+* Bank statements
+* Identity documents
+* Invoices
+* Tax documents
+* Employment documents
+* Vendor certificates
+
+These documents are often checked manually for:
+
+* Required fields
+* Valid dates
+* Monetary values
+* Missing information
+* Internal policy requirements
+* Document freshness
+* Data consistency
+
+Manual document review is repetitive, slow, and inconsistent.
+
+Traditional automation struggles because document formats vary between companies and issuers.
+
+AI Doc Lens solves this by combining:
+
+* LLM-based document understanding
+* Structured schema validation
+* Deterministic compliance rules
+
+---
+
+# 3. Product Vision
+
+AI Doc Lens should become an extensible open-source document intelligence framework.
+
+Developers should be able to add support for a new document type by defining:
+
+```text
+Document schema
+Extraction prompt
+Compliance rules
+Tests
+Registry configuration
+```
+
+The project may later support:
+
+* OCR
+* Images
+* Automatic document classification
+* Configurable rule files
+* Custom document plugins
+* Local LLMs
+* Multiple LLM providers
+* Batch document processing
+* Fraud-detection integrations
+* SaaS or enterprise products
+
+---
+
+# 4. Product Goals
+
+## 4.1 Primary Goals
+
+The MVP must:
+
+* Support one document type: salary slip
+* Accept text-based PDF files
+* Extract structured salary-slip fields
+* Run predefined compliance rules
+* Return PASS, FAIL, or MANUAL_REVIEW
+* Support both Python SDK and CLI usage
+* Provide a minimal FastAPI interface
+* Be easy for contributors to extend
+* Avoid permanent document storage
+* Include tests and clear documentation
+
+## 4.2 Secondary Goals
+
+The architecture should support future addition of:
+
+* Bank statements
+* PAN cards
+* Aadhaar cards
+* Invoices
+* Tax documents
+* Custom document types
+* OCR engines
+* Local LLMs
+* Custom compliance policies
+
+## 4.3 Non-Goals for MVP
+
+The MVP will not include:
+
+* Database
+* User authentication
+* Frontend dashboard
+* Cloud deployment
+* Document history
+* Kafka
+* Celery
+* Redis
+* S3
+* Billing
+* Multi-tenancy
+* Fine-tuning
+* Vector database
+* RAG
+* Fraud detection
+* Legal advice
+* Document authenticity verification
+
+---
+
+# 5. Target Users
+
+## 5.1 Python Developers
+
+Developers who want to integrate document extraction and validation into their applications.
+
+## 5.2 Compliance and Fintech Engineers
+
+Engineers working on lending, KYC, underwriting, verification, audit, and regulatory workflows.
+
+## 5.3 Open-Source Contributors
+
+Developers who want to contribute:
+
+* New document types
+* New rules
+* New model providers
+* OCR integrations
+* Test datasets
+* Documentation
+
+## 5.4 Technical Evaluators
+
+Recruiters, engineering managers, or reviewers evaluating the project as a backend and AI engineering portfolio project.
+
+---
+
+# 6. MVP Scope
+
+## 6.1 Supported Document Type
+
+The first release will support:
+
+```text
+salary_slip
+```
+
+## 6.2 Supported Input Format
+
+```text
+PDF
+```
+
+Only text-based PDFs will be supported.
+
+Scanned PDFs will return an actionable error stating that OCR is not yet supported.
+
+## 6.3 Extracted Fields
+
+The salary-slip extractor will return:
+
+```text
+employee_name
+employer_name
+salary_month
+gross_salary
+net_salary
+currency
+```
+
+Optional future fields:
+
+```text
+employee_id
+designation
+basic_salary
+deductions
+tax_amount
+payment_date
+bank_account_last_four
+```
+
+## 6.4 Compliance Checks
+
+The MVP will include:
+
+1. Employee name must be present.
+2. Employer name must be present.
+3. Salary month must be present.
+4. Salary slip must not be older than three months.
+5. Gross salary must be greater than zero.
+6. Net salary must be greater than zero.
+7. Net salary must not be greater than gross salary.
+8. Currency should be identifiable.
+9. Ambiguous or incomplete extraction may require manual review.
+
+---
+
+# 7. Functional Requirements
+
+## FR-1: PDF Input
+
+The system must accept a local PDF file path through the Python SDK and CLI.
+
+The API must accept a PDF through multipart form-data.
+
+## FR-2: File Validation
+
+The system must validate:
+
+* File exists
+* File is readable
+* File extension is PDF
+* PDF can be opened
+* PDF contains extractable text
+
+## FR-3: Text Extraction
+
+The system must extract text from all PDF pages.
+
+The system must preserve reasonable page separation.
+
+The system must return a clear error if no readable text exists.
+
+## FR-4: Document Type Selection
+
+The user must provide a document type in MVP.
+
+Example:
+
+```text
+salary_slip
+```
+
+Automatic classification is outside MVP scope.
+
+## FR-5: LLM-Based Field Extraction
+
+The system must send the extracted document text and document-specific instructions to an LLM.
+
+The LLM must return data matching the expected document schema.
+
+The prompt must instruct the model:
+
+* Do not guess
+* Return null for missing data
+* Return valid JSON only
+* Use standardized date formats
+* Use numeric monetary values
+
+## FR-6: Schema Validation
+
+The LLM response must be validated through Pydantic.
+
+Invalid responses must produce a structured extraction error.
+
+## FR-7: Compliance Rule Execution
+
+The system must run the registered compliance rules for the selected document type.
+
+Each rule must return:
+
+```text
+rule identifier
+status
+value
+reason
+evidence
+```
+
+## FR-8: Final Status
+
+The final status must be calculated using the following priority:
+
+```text
+If any check is FAIL:
+    Final status = FAIL
+
+Else if any check is MANUAL_REVIEW:
+    Final status = MANUAL_REVIEW
+
+Else:
+    Final status = PASS
+```
+
+## FR-9: Structured Output
+
+The output must be JSON serializable.
+
+## FR-10: Python SDK
+
+The package must expose a simple public interface.
+
+Example:
+
+```python
+from aidoclens import validate_document
+
+result = validate_document(
+    path="salary-slip.pdf",
+    document_type="salary_slip",
+)
+```
+
+## FR-11: CLI
+
+The CLI must support:
+
+```bash
+aidoclens validate salary-slip.pdf --type salary_slip
+```
+
+Optional command:
+
+```bash
+aidoclens list-document-types
+```
+
+## FR-12: API
+
+The FastAPI application must expose:
+
+```text
+GET /health
+GET /v1/document-types
+POST /v1/documents/validate
+```
+
+## FR-13: LLM Provider Abstraction
+
+The core engine must not depend directly on a single LLM vendor.
+
+The project must define an LLM provider interface.
+
+The MVP may implement one provider first.
+
+## FR-14: Fake Provider for Tests
+
+The project must include a fake LLM provider for unit and integration testing.
+
+Tests must not depend on a live external LLM API.
+
+---
+
+# 8. Non-Functional Requirements
+
+## NFR-1: Privacy
+
+Uploaded files must not be permanently stored.
+
+Temporary files must be deleted after processing.
+
+The project must not log full document contents.
+
+## NFR-2: Extensibility
+
+Adding a new document type should not require modifying the core extraction pipeline.
+
+## NFR-3: Testability
+
+Compliance rules must be independently testable.
+
+The LLM layer must be replaceable with a fake provider.
+
+## NFR-4: Reliability
+
+Malformed LLM responses must not crash the application.
+
+Unsupported files must return clear errors.
+
+## NFR-5: Maintainability
+
+Code must be modular and typed.
+
+Functions should have narrow responsibilities.
+
+## NFR-6: Security
+
+The system must:
+
+* Reject unsupported file types
+* Avoid exposing stack traces through APIs
+* Limit uploaded file size
+* Avoid storing secrets in code
+* Use environment variables for API credentials
+
+## NFR-7: Performance
+
+For small text-based PDFs, processing should complete within a reasonable interactive request duration.
+
+Most latency will depend on the selected LLM provider.
+
+## NFR-8: Open-Source Readiness
+
+The repository must include:
+
+* README
+* LICENSE
+* CONTRIBUTING guide
+* Example environment file
+* Tests
+* Sample synthetic document
+* Clear extension instructions
+
+---
+
+# 9. User Stories
+
+## US-1: Validate a Salary Slip Through Python
+
+As a developer, I want to pass a salary-slip PDF to the Python package so that I receive extracted fields and compliance results.
+
+### Acceptance Criteria
+
+* The function accepts a PDF path.
+* The function accepts `salary_slip` as document type.
+* The function returns structured data.
+* The output contains final status and individual checks.
+
+## US-2: Validate Through CLI
+
+As a developer, I want to validate a salary slip through the terminal so that I can test the project without building an application.
+
+### Acceptance Criteria
+
+```bash
+aidoclens validate sample.pdf --type salary_slip
+```
+
+returns formatted JSON.
+
+## US-3: Validate Through API
+
+As a developer, I want to upload a document through an HTTP endpoint so that I can integrate AI Doc Lens with another service.
+
+### Acceptance Criteria
+
+* Endpoint accepts multipart form-data.
+* Endpoint returns JSON.
+* Uploaded file is deleted after processing.
+* Invalid files return structured errors.
+
+## US-4: Add a New Document Type
+
+As a contributor, I want to add a document type without modifying the core pipeline.
+
+### Acceptance Criteria
+
+The contributor only needs to add:
+
+* Schema
+* Prompt
+* Rules
+* Registry entry
+* Tests
+
+## US-5: Use a Different LLM Provider
+
+As a developer, I want to replace the LLM provider so that I can use a local or cloud model.
+
+### Acceptance Criteria
+
+The provider implements the common LLM provider interface.
+
+---
+
+# 10. System Workflow
+
+```text
+User provides PDF and document type
+                ↓
+Input validator checks file
+                ↓
+PDF reader extracts text
+                ↓
+Document registry loads configuration
+                ↓
+Prompt builder creates extraction prompt
+                ↓
+LLM provider extracts structured data
+                ↓
+Pydantic validates extracted fields
+                ↓
+Rule engine runs compliance checks
+                ↓
+Result aggregator determines final status
+                ↓
+Structured JSON response returned
+```
+
+---
+
+# 11. High-Level Architecture
+
+```text
+┌────────────────────────────────────┐
+│         Python SDK / CLI / API     │
+└──────────────────┬─────────────────┘
+                   │
+┌──────────────────▼─────────────────┐
+│          Document Pipeline         │
+└──────────────────┬─────────────────┘
+                   │
+        ┌──────────▼──────────┐
+        │   Document Reader   │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │ Document Registry   │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │    LLM Extractor    │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │ Pydantic Validation │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │ Compliance Rules    │
+        └──────────┬──────────┘
+                   │
+        ┌──────────▼──────────┐
+        │ Result Aggregator   │
+        └─────────────────────┘
+```
+
+---
+
+# 12. Recommended Project Structure
+
+```text
+ai-doc-lens/
+├── aidoclens/
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── config.py
+│   ├── exceptions.py
+│   ├── constants.py
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── compliance.py
+│   │
+│   ├── readers/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   └── pdf_reader.py
+│   │
+│   ├── llm/
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── factory.py
+│   │   ├── openai_provider.py
+│   │   └── fake_provider.py
+│   │
+│   ├── documents/
+│   │   ├── __init__.py
+│   │   └── salary_slip/
+│   │       ├── __init__.py
+│   │       ├── schema.py
+│   │       ├── prompt.py
+│   │       ├── rules.py
+│   │       └── config.py
+│   │
+│   ├── engine/
+│   │   ├── __init__.py
+│   │   ├── extractor.py
+│   │   ├── validator.py
+│   │   ├── registry.py
+│   │   ├── result_builder.py
+│   │   └── pipeline.py
+│   │
+│   └── api/
+│       ├── __init__.py
+│       ├── main.py
+│       ├── dependencies.py
+│       ├── schemas.py
+│       └── routes/
+│           ├── __init__.py
+│           ├── health.py
+│           └── documents.py
+│
+├── tests/
+│   ├── unit/
+│   │   ├── test_pdf_reader.py
+│   │   ├── test_salary_slip_schema.py
+│   │   ├── test_salary_slip_rules.py
+│   │   ├── test_result_builder.py
+│   │   └── test_registry.py
+│   │
+│   ├── integration/
+│   │   ├── test_pipeline.py
+│   │   ├── test_cli.py
+│   │   └── test_api.py
+│   │
+│   └── fixtures/
+│       ├── salary_slip_data.py
+│       └── fake_provider.py
+│
+├── samples/
+│   └── salary_slips/
+│       ├── valid_salary_slip.pdf
+│       └── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── adding-document-types.md
+│   ├── provider-interface.md
+│   └── security.md
+│
+├── scripts/
+│   └── create_sample_pdf.py
+│
+├── .env.example
+├── .gitignore
+├── pre-commit-config.yaml
+├── pyproject.toml
+├── README.md
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
+├── LICENSE
+└── Makefile
+```
+
+---
+
+# 13. Module Responsibilities
+
+## 13.1 `models/compliance.py`
+
+Contains shared output models:
+
+* CheckStatus
+* ComplianceCheck
+* ComplianceResult
+* ErrorResponse
+
+## 13.2 `readers/`
+
+Responsible only for reading files and extracting raw text.
+
+The reader must not:
+
+* Call the LLM
+* Apply rules
+* Determine compliance
+
+## 13.3 `llm/`
+
+Contains the provider abstraction and implementations.
+
+Responsibilities:
+
+* Send prompts
+* Receive model responses
+* Parse structured output
+* Raise provider-specific errors as common exceptions
+
+## 13.4 `documents/`
+
+Contains document-specific logic.
+
+Each document type contains:
+
+```text
+schema.py
+prompt.py
+rules.py
+config.py
+```
+
+## 13.5 `engine/`
+
+Contains reusable workflow logic.
+
+Responsibilities:
+
+* Registry lookup
+* Prompt formatting
+* Extraction
+* Schema validation
+* Rule execution
+* Final result construction
+
+## 13.6 `api/`
+
+Contains only HTTP-specific concerns.
+
+Responsibilities:
+
+* File upload
+* Request validation
+* Temporary file handling
+* Mapping exceptions to HTTP responses
+
+## 13.7 `cli.py`
+
+Contains terminal command definitions.
+
+Business logic must remain inside the engine, not the CLI.
+
+---
+
+# 14. Core Data Models
+
+## 14.1 Status Enum
+
+```python
+from enum import Enum
+
+
+class CheckStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    MANUAL_REVIEW = "MANUAL_REVIEW"
+```
+
+## 14.2 Compliance Check
+
+```python
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class ComplianceCheck(BaseModel):
+    rule: str
+    status: CheckStatus
+    value: Any | None = None
+    reason: str | None = None
+    evidence: str | None = None
+```
+
+## 14.3 Compliance Result
+
+```python
+class ComplianceResult(BaseModel):
+    document_type: str
+    status: CheckStatus
+    extracted_data: dict
+    checks: list[ComplianceCheck]
+```
+
+## 14.4 Salary Slip Schema
+
+```python
+from datetime import date
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
+
+
+class SalarySlipData(BaseModel):
+    employee_name: str | None = None
+    employer_name: str | None = None
+    salary_month: date | None = None
+    gross_salary: Decimal | None = Field(default=None, ge=0)
+    net_salary: Decimal | None = Field(default=None, ge=0)
+    currency: str | None = None
+```
+
+---
+
+# 15. Document Registry Design
+
+The document registry maps a document type to its configuration.
+
+```python
+DOCUMENT_REGISTRY = {
+    "salary_slip": {
+        "schema": SalarySlipData,
+        "prompt": SALARY_SLIP_PROMPT,
+        "rules": [
+            employee_name_present,
+            employer_name_present,
+            salary_month_present,
+            salary_slip_is_recent,
+            gross_salary_is_positive,
+            net_salary_is_positive,
+            net_salary_not_greater_than_gross,
+            currency_is_present,
+        ],
+    }
+}
+```
+
+Future improvements may replace the dictionary with a typed configuration model.
+
+---
+
+# 16. LLM Provider Interface
+
+```python
+from abc import ABC, abstractmethod
+
+from pydantic import BaseModel
+
+
+class LLMProvider(ABC):
+
+    @abstractmethod
+    def extract(
+        self,
+        prompt: str,
+        response_model: type[BaseModel],
+    ) -> BaseModel:
+        raise NotImplementedError
+```
+
+## MVP Provider
+
+The first release may use:
+
+```text
+OpenAI-compatible provider
+```
+
+The implementation should allow a custom base URL so that compatible services or local gateways can be used.
+
+## Future Providers
+
+* Ollama
+* Anthropic
+* Gemini
+* Local Transformers
+* MLX
+* LiteLLM
+
+---
+
+# 17. Prompt Requirements
+
+The salary-slip prompt must instruct the model:
+
+```text
+You are extracting structured data from a salary slip.
+
+Do not guess missing values.
+Return null when information is not present.
+Return only valid JSON.
+Use YYYY-MM-01 for salary_month.
+Return monetary values as numbers only.
+Do not add fields outside the schema.
+```
+
+Example expected schema:
+
+```json
+{
+  "employee_name": null,
+  "employer_name": null,
+  "salary_month": null,
+  "gross_salary": null,
+  "net_salary": null,
+  "currency": null
+}
+```
+
+The document text will be appended after the instructions.
+
+---
+
+# 18. Compliance Rule Design
+
+Each rule must be:
+
+* Independent
+* Deterministic
+* Small
+* Unit testable
+* Free from direct LLM calls
+* Free from file-reading logic
+
+Example:
+
+```python
+def employee_name_present(
+    data: SalarySlipData,
+) -> ComplianceCheck:
+    if not data.employee_name:
+        return ComplianceCheck(
+            rule="employee_name_present",
+            status=CheckStatus.FAIL,
+            reason="Employee name is missing.",
+        )
+
+    return ComplianceCheck(
+        rule="employee_name_present",
+        status=CheckStatus.PASS,
+        value=data.employee_name,
+    )
+```
+
+## Required Rule Functions
+
+```text
+employee_name_present
+employer_name_present
+salary_month_present
+salary_slip_is_recent
+gross_salary_is_positive
+net_salary_is_positive
+net_salary_not_greater_than_gross
+currency_is_present
+```
+
+---
+
+# 19. Manual Review Rules
+
+MANUAL_REVIEW should be used when the system cannot confidently determine whether a condition passes or fails.
+
+Possible cases:
+
+* Multiple salary months detected
+* Multiple employee names detected
+* Gross salary cannot be distinguished from total earnings
+* Currency is missing but inferred from symbols
+* Document text is unusually short
+* LLM returns incomplete but partially usable data
+* Date format is ambiguous
+
+The MVP may implement limited manual-review logic.
+
+Deterministic missing required fields may still return FAIL.
+
+---
+
+# 20. Public Python Interface
+
+The preferred public API:
+
+```python
+from aidoclens import validate_document
+
+result = validate_document(
+    path="salary-slip.pdf",
+    document_type="salary_slip",
+)
+```
+
+Advanced usage:
+
+```python
+from aidoclens import validate_document
+from aidoclens.llm import OpenAIProvider
+
+provider = OpenAIProvider(
+    model="example-model",
+    api_key="secret",
+)
+
+result = validate_document(
+    path="salary-slip.pdf",
+    document_type="salary_slip",
+    llm_provider=provider,
+)
+```
+
+---
+
+# 21. CLI Requirements
+
+## Validate Command
+
+```bash
+aidoclens validate salary-slip.pdf --type salary_slip
+```
+
+## Optional Pretty Output
+
+```bash
+aidoclens validate salary-slip.pdf \
+  --type salary_slip \
+  --pretty
+```
+
+## List Document Types
+
+```bash
+aidoclens list-document-types
+```
+
+## CLI Exit Codes
+
+```text
+0 = processing completed
+1 = application or extraction error
+2 = invalid command usage
+```
+
+The compliance result itself should not necessarily control the process exit code in MVP.
+
+---
+
+# 22. API Requirements
+
+## GET `/health`
+
+Response:
+
+```json
+{
+  "status": "healthy"
+}
+```
+
+## GET `/v1/document-types`
+
+Response:
+
+```json
+{
+  "document_types": [
+    "salary_slip"
+  ]
+}
+```
+
+## POST `/v1/documents/validate`
+
+### Request
+
+```text
+Content-Type: multipart/form-data
+
+file: document.pdf
+document_type: salary_slip
+```
+
+### Successful Response
+
+```json
+{
+  "document_type": "salary_slip",
+  "status": "PASS",
+  "extracted_data": {
+    "employee_name": "Example Employee",
+    "employer_name": "Example Company Pvt Ltd",
+    "salary_month": "2026-06-01",
+    "gross_salary": 100000,
+    "net_salary": 85000,
+    "currency": "INR"
+  },
+  "checks": [
+    {
+      "rule": "employee_name_present",
+      "status": "PASS",
+      "value": "Example Employee",
+      "reason": null,
+      "evidence": null
+    }
+  ]
+}
+```
+
+---
+
+# 23. Error Handling
+
+## Standard Error Format
+
+```json
+{
+  "error": {
+    "code": "EMPTY_DOCUMENT",
+    "message": "No readable text was found in the PDF.",
+    "suggestion": "The document may be scanned. OCR is not supported in this release."
+  }
+}
+```
+
+## Error Types
+
+```text
+FileNotFoundError
+UnsupportedFileTypeError
+DocumentReadError
+EmptyDocumentError
+UnsupportedDocumentTypeError
+LLMProviderError
+LLMExtractionError
+InvalidLLMResponseError
+ComplianceRuleError
+ConfigurationError
+```
+
+## API Status Mapping
+
+```text
+400 Bad Request
+- Unsupported file
+- Missing document type
+- Empty document
+
+404 Not Found
+- Local SDK file missing
+
+422 Unprocessable Entity
+- Invalid extracted data
+
+500 Internal Server Error
+- Unexpected provider or processing error
+
+503 Service Unavailable
+- LLM provider unavailable
+```
+
+---
+
+# 24. Configuration
+
+Configuration must use environment variables.
+
+Example `.env.example`:
+
+```env
+AIDOC_LLM_PROVIDER=openai
+AIDOC_OPENAI_API_KEY=
+AIDOC_OPENAI_MODEL=
+AIDOC_OPENAI_BASE_URL=
+AIDOC_MAX_FILE_SIZE_MB=10
+AIDOC_REQUEST_TIMEOUT_SECONDS=60
+```
+
+Settings should be loaded through `pydantic-settings`.
+
+---
+
+# 25. Security and Privacy Requirements
+
+AI Doc Lens may process sensitive documents.
+
+The project must:
+
+* Never commit real personal documents
+* Use synthetic or redacted samples
+* Delete temporary API uploads
+* Avoid logging full document text
+* Avoid logging full LLM prompts
+* Never expose API keys
+* Validate file extensions
+* Validate maximum file size
+* Warn users when cloud providers receive document text
+* Recommend local providers for sensitive workloads
+
+## Required Disclaimer
+
+```text
+AI Doc Lens is a developer tool and does not provide legal, financial,
+regulatory, or compliance advice. Results should be reviewed by qualified
+professionals before being used for high-risk decisions.
+```
+
+---
+
+# 26. Testing Strategy
+
+## 26.1 Unit Tests
+
+Test each salary-slip rule independently.
+
+Required cases:
+
+```text
+Employee name present
+Employee name missing
+Employer name present
+Employer name missing
+Salary month present
+Salary month missing
+Salary slip within three months
+Salary slip older than three months
+Gross salary positive
+Gross salary zero
+Net salary positive
+Net salary zero
+Net salary below gross salary
+Net salary equal to gross salary
+Net salary greater than gross salary
+Currency present
+Currency missing
+```
+
+## 26.2 Reader Tests
+
+```text
+Valid PDF returns text
+Missing PDF raises error
+Non-PDF file is rejected
+Unreadable PDF raises error
+Empty PDF raises error
+Multi-page PDF combines text
+```
+
+## 26.3 Schema Tests
+
+```text
+Valid extracted payload is accepted
+Negative salary is rejected
+Invalid date is rejected
+Unknown field handling is tested
+Decimal conversion is tested
+```
+
+## 26.4 Registry Tests
+
+```text
+Registered type can be loaded
+Unknown type raises error
+Salary-slip configuration contains schema, prompt, and rules
+```
+
+## 26.5 Pipeline Tests
+
+Use a fake provider.
+
+```text
+PDF → fake provider → schema → rules → PASS
+PDF → fake provider → schema → rules → FAIL
+PDF → fake provider → schema → rules → MANUAL_REVIEW
+```
+
+## 26.6 CLI Tests
+
+```text
+Valid command returns JSON
+Missing file returns error
+Unsupported document type returns error
+```
+
+## 26.7 API Tests
+
+```text
+Health endpoint succeeds
+Document type endpoint succeeds
+Valid upload succeeds
+Invalid file type fails
+Missing file fails
+Oversized file fails
+Temporary file is removed
+```
+
+---
+
+# 27. Fake LLM Provider
+
+The project must include a deterministic fake provider.
+
+Example:
+
+```python
+class FakeLLMProvider(LLMProvider):
+
+    def __init__(self, response: dict):
+        self.response = response
+
+    def extract(
+        self,
+        prompt: str,
+        response_model: type[BaseModel],
+    ) -> BaseModel:
+        return response_model.model_validate(self.response)
+```
+
+This allows testing without:
+
+* API cost
+* Network access
+* Non-deterministic model responses
+* Provider rate limits
+
+---
+
+# 28. Sample Output
+
+```json
+{
+  "document_type": "salary_slip",
+  "status": "FAIL",
+  "extracted_data": {
+    "employee_name": "Example Employee",
+    "employer_name": "Example Company Pvt Ltd",
+    "salary_month": "2025-12-01",
+    "gross_salary": 100000,
+    "net_salary": 85000,
+    "currency": "INR"
+  },
+  "checks": [
+    {
+      "rule": "employee_name_present",
+      "status": "PASS",
+      "value": "Example Employee",
+      "reason": null,
+      "evidence": "Example Employee"
+    },
+    {
+      "rule": "salary_slip_is_recent",
+      "status": "FAIL",
+      "value": "2025-12-01",
+      "reason": "Salary slip is older than three months.",
+      "evidence": "Salary month: December 2025"
+    }
+  ]
+}
+```
+
+---
+
+# 29. Dependency Recommendations
+
+## Runtime Dependencies
+
+```text
+pydantic
+pydantic-settings
+pymupdf
+typer
+fastapi
+uvicorn
+python-multipart
+openai
+```
+
+## Development Dependencies
+
+```text
+pytest
+pytest-cov
+httpx
+ruff
+mypy
+pre-commit
+```
+
+Optional:
+
+```text
+rich
+```
+
+for CLI formatting.
+
+---
+
+# 30. Packaging Requirements
+
+The project should use `pyproject.toml`.
+
+The package name may be:
+
+```text
+ai-doc-lens
+```
+
+The import name should be:
+
+```python
+import aidoclens
+```
+
+The CLI entry point should be:
+
+```text
+aidoclens
+```
+
+Example configuration:
+
+```toml
+[project.scripts]
+aidoclens = "aidoclens.cli:app"
+```
+
+---
+
+# 31. Coding Standards
+
+The project should use:
+
+* Python 3.12+
+* Type hints
+* Ruff for linting and formatting
+* Mypy for static analysis
+* Pytest for testing
+* Pydantic v2
+* Small functions
+* Explicit exception classes
+* Dependency injection for providers
+
+The project should avoid:
+
+* Large service classes
+* Hardcoded API keys
+* Global provider clients
+* Provider-specific logic inside the pipeline
+* Business rules inside prompts
+* Compliance decisions made directly by the LLM
+
+---
+
+# 32. Documentation Requirements
+
+## README
+
+The README must include:
+
+1. Product overview
+2. Features
+3. Architecture
+4. Installation
+5. Configuration
+6. Python usage
+7. CLI usage
+8. API usage
+9. Example response
+10. Supported document types
+11. Adding new document types
+12. Privacy warning
+13. Limitations
+14. Roadmap
+15. Contributing
+16. License
+
+## Additional Documentation
+
+```text
+docs/architecture.md
+docs/adding-document-types.md
+docs/provider-interface.md
+docs/security.md
+```
+
+---
+
+# 33. Contribution Workflow
+
+A new document type contribution should include:
+
+```text
+New schema
+New prompt
+New compliance rules
+Registry entry
+Synthetic sample
+Unit tests
+Pipeline test
+Documentation update
+```
+
+Pull requests should pass:
+
+```text
+Formatting
+Linting
+Type checking
+Unit tests
+Integration tests
+```
+
+---
+
+# 34. GitHub Repository Requirements
+
+The repository should include:
+
+```text
+README.md
+LICENSE
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+Issue templates
+Pull request template
+GitHub Actions workflow
+```
+
+Recommended GitHub topics:
+
+```text
+python
+fastapi
+llm
+document-ai
+compliance
+document-processing
+pydantic
+open-source
+pdf-extraction
+ai
+```
+
+---
+
+# 35. CI Pipeline
+
+GitHub Actions should run on every pull request.
+
+Required jobs:
+
+```text
+Install dependencies
+Run Ruff
+Run Mypy
+Run Pytest
+Generate coverage report
+```
+
+Recommended Python versions:
+
+```text
+3.12
+3.13
+```
+
+---
+
+# 36. MVP Milestones
+
+## Milestone 1: Project Foundation
+
+Deliverables:
+
+* Repository created
+* `pyproject.toml`
+* Package structure
+* Shared models
+* Exceptions
+* Settings
+* Basic tests
+
+## Milestone 2: Document Reading
+
+Deliverables:
+
+* PDF reader
+* File validation
+* Empty-document detection
+* Reader tests
+
+## Milestone 3: Salary-Slip Extraction
+
+Deliverables:
+
+* Salary-slip schema
+* Prompt
+* LLM provider interface
+* First provider
+* Fake provider
+* Extraction tests
+
+## Milestone 4: Compliance Engine
+
+Deliverables:
+
+* Salary-slip rules
+* Validator
+* Result builder
+* Final status calculation
+* Rule tests
+
+## Milestone 5: Public Interfaces
+
+Deliverables:
+
+* Python SDK
+* CLI
+* FastAPI endpoints
+* CLI and API tests
+
+## Milestone 6: Open-Source Release
+
+Deliverables:
+
+* README
+* Synthetic sample PDF
+* License
+* Contribution guide
+* Security documentation
+* GitHub Actions
+* Release tag `v0.1.0`
+
+---
+
+# 37. Suggested Two-Day Implementation Plan
+
+## Day 1
+
+### Session 1
+
+* Initialize repository
+* Create package structure
+* Add dependencies
+* Define common models
+* Define exceptions
+
+### Session 2
+
+* Implement PDF reader
+* Implement salary-slip schema
+* Create extraction prompt
+* Create LLM provider interface
+* Create fake provider
+
+### Session 3
+
+* Implement real provider
+* Implement extraction engine
+* Implement salary-slip rules
+* Implement validator
+* Implement pipeline
+
+## Day 2
+
+### Session 1
+
+* Add Python public interface
+* Add CLI
+* Add FastAPI endpoints
+* Add structured error handling
+
+### Session 2
+
+* Write rule tests
+* Write reader tests
+* Write pipeline tests
+* Write API and CLI tests
+
+### Session 3
+
+* Create synthetic salary-slip PDF
+* Write README
+* Add license
+* Add contribution guide
+* Add GitHub Actions
+* Publish `v0.1.0`
+
+---
+
+# 38. Release Acceptance Criteria
+
+Version `0.1.0` is complete when:
+
+* A developer can install the package locally.
+* A text-based salary-slip PDF can be processed.
+* Salary-slip fields are returned in structured form.
+* All registered compliance rules run successfully.
+* Final status is calculated deterministically.
+* CLI validation works.
+* FastAPI validation works.
+* Temporary uploaded files are deleted.
+* No database is required.
+* No frontend is required.
+* Tests run without a real LLM.
+* At least 80% meaningful test coverage is achieved.
+* Documentation explains how to add another document type.
+* No real personal documents are committed.
+* The project includes a disclaimer.
+* GitHub release `v0.1.0` is published.
+
+---
+
+# 39. Future Roadmap
+
+## Version 0.2
+
+* OCR support
+* Image input
+* Ollama provider
+* Better confidence handling
+* Bank-statement support
+
+## Version 0.3
+
+* Automatic document classification
+* Invoice support
+* PAN support
+* Configurable YAML rules
+* Plugin discovery
+
+## Version 0.4
+
+* Batch processing
+* Multiple files
+* Document cross-validation
+* Compare salary slip with bank statement
+* Rule groups and policy packs
+
+## Version 1.0
+
+* Stable plugin API
+* Stable provider interface
+* Custom document registration
+* Custom rule packs
+* Full documentation
+* Versioned schemas
+* Production-ready security guidance
+
+---
+
+# 40. Key Product Principle
+
+The most important architectural rule is:
+
+```text
+Do not use the LLM as the compliance authority.
+```
+
+The LLM should:
+
+```text
+Read
+Understand
+Extract
+Normalize
+```
+
+The Python engine should:
+
+```text
+Validate
+Compare
+Apply policies
+Determine status
+Explain failures
+```
+
+This separation makes AI Doc Lens easier to test, trust, extend, and use in real systems.
+The clean MVP flow is therefore:
+
+  Validate PDF
+      ↓
+  Extract page text using pypdf
+      ↓
+  Reject if no meaningful text exists
+      ↓
+  Send extracted text and schema instructions to LLM
+      ↓
+  Validate LLM JSON with Pydantic
+      ↓
+  Apply deterministic Python rules

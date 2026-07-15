@@ -1,0 +1,110 @@
+ models/salary_slip.py
+      Defines fields and their data types
+
+  extractors/salary_slip.py
+      Uses the LLM to populate those fields
+
+  validator.py
+      Validates the PDF input itself
+
+  rules/salary_slip.py
+      Applies compliance rules
+
+  For example, define the expected fields with Pydantic:
+
+  from pydantic import BaseModel
+
+
+  class SalarySlipFields(BaseModel):
+      employee_name: str
+      employer_name: str
+      salary_month: int
+      salary_year: int
+      gross_salary: float
+      net_salary: float
+      currency: str
+
+  Then give the LLM:
+
+  - Extracted PDF text
+  - Document type: salary_slip
+  - The required field definitions
+  - Instructions to return structured JSON
+  - Instructions to use null instead of guessing missing values
+
+  Conceptually:
+
+  pdf_text = extract_pdf_text(file_path)
+
+  llm_response = llm.extract(
+      document_type="salary_slip",
+      text=pdf_text,
+      output_schema=SalarySlipFields,
+  )
+
+  The LLM should return something like:
+
+  {
+    "employee_name": "Misbah Khan",
+    "employer_name": "ABC Technologies Pvt Ltd",
+    "salary_month": 6,
+    "salary_year": 2026,
+    "gross_salary": 80000,
+    "net_salary": 68000,
+    "currency": "INR"
+  }
+
+  This starts as an untrusted dictionary. You should validate it with Pydantic:
+
+  validated_fields = SalarySlipFields.model_validate(llm_response)
+
+  After validation, validated_fields is a typed Python object:
+
+  print(validated_fields.net_salary)
+  # 68000.0
+
+  Then the rule engine uses that object:
+
+  def run_rules(fields: SalarySlipFields) -> list[str]:
+      failures = []
+
+      if fields.net_salary > fields.gross_salary:
+          failures.append("Net salary cannot exceed gross salary")
+
+      return failures
+
+  The full data transformation is:
+
+  PDF
+  ↓
+  Raw text: str
+  ↓
+  LLM output: dict (untrusted)
+  ↓
+  Pydantic model: SalarySlipFields (validated)
+  ↓
+  Rule results
+  ↓
+  Final API response
+
+  validator.py should therefore be limited to input/file validation:
+
+  validate_pdf_path()
+  validate_extension()
+  validate_readability()
+  validate_pdf_can_open()
+
+  It should not define salary-slip fields because the validator is generic, while field schemas differ by document type.
+
+  Also, fields that may be absent should be optional:
+
+  class SalarySlipFields(BaseModel):
+      employee_name: str | None = None
+      employer_name: str | None = None
+      salary_month: int | None = None
+      salary_year: int | None = None
+      gross_salary: float | None = None
+      net_salary: float | None = None
+      currency: str | None = None
+
+  This lets the LLM return null for missing information. Your compliance rules can then determine whether a missing field means FAIL or MANUAL_REVIEW.
