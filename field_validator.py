@@ -1,0 +1,9 @@
+class SalarySlipFields:
+    document_type: str
+    employee_name: str
+    employer_name: str
+    salary_month: int
+    salary_year: int
+    gross_salary: float
+    net_salary: float
+    currency: str
