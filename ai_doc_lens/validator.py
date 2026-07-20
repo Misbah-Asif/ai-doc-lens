@@ -4,6 +4,7 @@ import sys, pathlib, pymupdf
 import requests
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
+from ai_doc_lens.llm_extractor import LLMExtractor
 
 from ai_doc_lens.models import DocumentType, PDFValidationResult
 
@@ -27,15 +28,17 @@ async def validate_pdf(
         ) from exc
     try:
         pdf_bytes = await file.read()
-        print("pdf_bytes of file get", pdf_bytes)
         with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:  # open document
             text = chr(12).join([page.get_text() for page in doc])
-        print("text type", type(text))
+        print("before result", text)
+        result = LLMExtractor().extract(text, document_type="salary_slip")
+
+        print("result", result)
     except (OSError, PdfReadError, ValueError) as exc:
         raise PDFValidationError("File cannot be opened as a valid PDF") from exc
 
     return PDFValidationResult(
         filename="",
         document_type=parsed_document_type,
-        text=text
+        validations=result
     )
